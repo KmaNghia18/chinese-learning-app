@@ -72,7 +72,7 @@ export default function VocabularyPage() {
     if (!user) return;
     setFetching(true);
     setPage(1);
-    api.getVocabulary({ hsk_level: filter, limit: "500" })
+    api.getVocabulary({ hsk_level: filter, limit: "2000" })
       .then(r => setWords(r.data || []))
       .catch(() => {})
       .finally(() => setFetching(false));
