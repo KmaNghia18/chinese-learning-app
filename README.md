@@ -4,9 +4,23 @@
 [![Backend](https://img.shields.io/badge/Backend-Express.js-green?logo=node.js)](https://expressjs.com)
 [![Database](https://img.shields.io/badge/Database-MySQL_8.0-blue?logo=mysql)](https://mysql.com)
 [![Deploy FE](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel)](https://vercel.com)
-[![Deploy BE](https://img.shields.io/badge/Deploy-Railway-purple?logo=railway)](https://railway.app)
+[![Deploy BE](https://img.shields.io/badge/Deploy-Render-purple)](https://render.com)
 
-Ứng dụng học tiếng Trung toàn diện dành cho người Việt, với hệ thống phiên âm tiếng Việt, hướng dẫn phát âm trực quan và nhiều chế độ luyện tập.
+---
+
+## 🌐 DEMO TRỰC TIẾP
+
+> ### 👉 [https://chinese-learning-app-iota.vercel.app](https://chinese-learning-app-iota.vercel.app)
+
+| Thành phần | URL |
+|-----------|-----|
+| 🖥️ **Frontend** (Vercel) | [chinese-learning-app-iota.vercel.app](https://chinese-learning-app-iota.vercel.app) |
+| ⚙️ **Backend API** (Render) | [chinese-learning-app-cxgq.onrender.com](https://chinese-learning-app-cxgq.onrender.com) |
+| 🗄️ **Database** (TiDB Cloud) | MySQL · ap-southeast-1 (Singapore) |
+
+> ⚠️ **Lưu ý**: Backend dùng Render free tier — lần đầu truy cập sau thời gian không hoạt động có thể mất ~30 giây để "thức dậy". Các lần sau bình thường.
+
+---
 
 ---
 
