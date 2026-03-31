@@ -196,7 +196,7 @@ export default function ListeningPage() {
                 style={{padding:'1rem',borderRadius:12,border:`2px solid ${border}`,background:bg,
                   color,fontWeight:600,cursor:selected!==null?'default':'pointer',
                   textAlign:'left',transition:'all .25s',display:'flex',gap:'.5rem',alignItems:'center'}}>
-                <span style={{fontWeight:800,fontSize:'1rem',minWidth:22,height:22,borderRadius:'50%',
+                <span style={{fontWeight:800,minWidth:22,height:22,borderRadius:'50%',
                   background:border==='var(--c-border)'?'var(--c-bg)':border+'30',
                   color:border==='var(--c-border)'?'var(--c-text-muted)':border,
                   display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.7rem',flexShrink:0}}>{LABELS[i]}</span>
