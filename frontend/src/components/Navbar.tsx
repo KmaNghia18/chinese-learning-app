@@ -1,6 +1,6 @@
 'use client';
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -9,6 +9,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAuth = pathname === "/login" || pathname === "/register";
   if (isAuth) return null;
 
@@ -43,7 +44,9 @@ export default function Navbar() {
 
         {/* Practice dropdown */}
         {user && (
-          <div style={{position:'relative'}} onMouseEnter={() => setMenuOpen(true)} onMouseLeave={() => setMenuOpen(false)}>
+          <div style={{position:'relative'}}
+            onMouseEnter={() => { if(closeTimer.current) clearTimeout(closeTimer.current); setMenuOpen(true); }}
+            onMouseLeave={() => { closeTimer.current = setTimeout(() => setMenuOpen(false), 150); }}>
             <button className={`nav-link${practiceLinks.some(l=>pathname.startsWith(l.href))?' active':''}`}
               style={{background:'none',border:'none',cursor:'pointer',fontFamily:'inherit',
                 display:'flex',alignItems:'center',gap:'.3rem',
@@ -57,10 +60,9 @@ export default function Navbar() {
             </button>
 
             {menuOpen && (
-              <div style={{position:'absolute',top:'100%',left:0,minWidth:160,
+              <div style={{position:'absolute',top:'calc(100% + 2px)',left:0,minWidth:160,
                 background:'var(--c-surface)',border:'1px solid var(--c-border)',
-                borderRadius:12,boxShadow:'0 8px 30px #0006',padding:'.4rem',zIndex:999,
-                marginTop:'4px'}}>
+                borderRadius:12,boxShadow:'0 8px 30px #0006',padding:'.4rem',zIndex:999}}>
                 {practiceLinks.map(l => (
                   <Link key={l.href} href={l.href}
                     style={{display:'block',padding:'.5rem .75rem',borderRadius:8,
