@@ -47,15 +47,15 @@ router.get('/practice/sentences', async (req, res) => {
   try {
     const { hsk_level, count = 10 } = req.query;
     let sql = `
-      SELECT dl.id, dl.content_zh, dl.meaning_vi, dl.speaker,
+      SELECT dl.id, dl.text_zh AS content_zh, dl.text_vi AS meaning_vi, dl.speaker,
              d.title, d.hsk_level, d.type
       FROM dialogue_lines dl
       JOIN dialogues d ON dl.dialogue_id = d.id
       WHERE d.is_active = TRUE
-        AND dl.content_zh IS NOT NULL
-        AND dl.meaning_vi IS NOT NULL
-        AND LENGTH(dl.content_zh) >= 2
-        AND LENGTH(dl.content_zh) <= 30`;
+        AND dl.text_zh IS NOT NULL
+        AND dl.text_vi IS NOT NULL
+        AND LENGTH(dl.text_zh) >= 2
+        AND LENGTH(dl.text_zh) <= 30`;
     const params = [];
     if (hsk_level) { sql += ' AND d.hsk_level = ?'; params.push(hsk_level); }
     sql += ` ORDER BY RAND() LIMIT ?`;
