@@ -31,4 +31,6 @@ export const api = {
   getReverseQuiz: (lvl:string,count=10,topic='all') => apiFetch(`/quiz/reverse?hsk_level=${lvl}&count=${count}&topic=${topic}`),
   getStreakStats: () => apiFetch('/progress/streak'),
   getFlashcards: (lvl?:string,limit=20) => apiFetch(`/vocabulary?${lvl?`hsk_level=${lvl}&`:''}limit=${limit}&offset=${Math.floor(Math.random()*50)}`),
+  request: (path:string) => apiFetch(path),
+  getSentences: (lvl:string,count=12) => apiFetch(`/dialogues/practice/sentences?hsk_level=${lvl}&count=${count}`),
 };

@@ -22,12 +22,13 @@ export default function Navbar() {
   ];
 
   const practiceLinks = [
-    { href: "/quiz",      label: "🧠 Quiz" },
-    { href: "/listening", label: "🎧 Nghe" },
-    { href: "/reverse",   label: "🔁 Quiz Ngược" },
-    { href: "/tones",     label: "🎵 Thanh điệu" },
-    { href: "/flashcard", label: "📇 Flashcard" },
-    { href: "/writing",   label: "✍️ Tập viết" },
+    { href: '/quiz',      label: '🧠 Quiz' },
+    { href: '/listening', label: '🎧 Nghe' },
+    { href: '/sentence',  label: '🧩 Ghép câu' },
+    { href: '/reverse',   label: '🔁 Quiz Ngược' },
+    { href: '/tones',     label: '🎵 Thanh điệu' },
+    { href: '/flashcard', label: '📇 Flashcard' },
+    { href: '/writing',   label: '✍️ Tập viết' },
   ];
 
   return (
