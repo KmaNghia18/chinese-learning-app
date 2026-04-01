@@ -46,8 +46,8 @@ router.get('/meta/stats', async (req, res) => {
 router.get('/practice/sentences', async (req, res) => {
   try {
     const { hsk_level, count = 10 } = req.query;
-    // Giới hạn độ dài câu theo cấp độ (HSK cao hơn = câu dài hơn)
-    const maxLen = hsk_level === 'HSK4' ? 60 : hsk_level === 'HSK3' ? 45 : 30;
+    // Câu dài dần theo cấp độ: HSK1 ngắn nhất → HSK4 dài nhất
+    const maxLen = hsk_level === 'HSK4' ? 60 : hsk_level === 'HSK3' ? 45 : hsk_level === 'HSK2' ? 30 : 20;
     let sql = `
       SELECT dl.id, dl.text_zh AS content_zh, dl.text_vi AS meaning_vi, dl.speaker,
              d.title, d.hsk_level, d.type
