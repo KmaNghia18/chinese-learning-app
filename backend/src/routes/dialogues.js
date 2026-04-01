@@ -22,26 +22,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/dialogues/:id — Chi tiết 1 bài (kèm tất cả dòng)
-router.get('/:id', async (req, res) => {
-  try {
-    const [dialogues] = await pool.query(
-      'SELECT * FROM dialogues WHERE id = ? AND is_active = TRUE',
-      [req.params.id]
-    );
-    if (!dialogues.length) return res.status(404).json({ success: false, message: 'Không tìm thấy' });
+// ⚠️ Các route cụ thể PHẢI đặt TRƯỚC /:id để tránh bị bắt nhầm
 
-    const [lines] = await pool.query(
-      'SELECT * FROM dialogue_lines WHERE dialogue_id = ? ORDER BY line_order',
-      [req.params.id]
-    );
-    res.json({ success: true, data: { ...dialogues[0], lines } });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// GET /api/dialogues/stats — Thống kê
+// GET /api/dialogues/meta/stats — Thống kê
 router.get('/meta/stats', async (req, res) => {
   try {
     const [stats] = await pool.query(`
@@ -57,7 +40,6 @@ router.get('/meta/stats', async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-
 
 // GET /api/dialogues/practice/sentences?hsk_level=HSK1&count=10
 // Trả về các dòng hội thoại để luyện ghép câu
@@ -80,6 +62,26 @@ router.get('/practice/sentences', async (req, res) => {
     params.push(parseInt(count));
     const [rows] = await pool.query(sql, params);
     res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/dialogues/:id — Chi tiết 1 bài (kèm tất cả dòng)
+// ⚠️ Đặt SAU các route cụ thể
+router.get('/:id', async (req, res) => {
+  try {
+    const [dialogues] = await pool.query(
+      'SELECT * FROM dialogues WHERE id = ? AND is_active = TRUE',
+      [req.params.id]
+    );
+    if (!dialogues.length) return res.status(404).json({ success: false, message: 'Không tìm thấy' });
+
+    const [lines] = await pool.query(
+      'SELECT * FROM dialogue_lines WHERE dialogue_id = ? ORDER BY line_order',
+      [req.params.id]
+    );
+    res.json({ success: true, data: { ...dialogues[0], lines } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
