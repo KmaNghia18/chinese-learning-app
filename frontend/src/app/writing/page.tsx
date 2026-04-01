@@ -109,6 +109,7 @@ export default function WritingPage() {
   const [selTopic, setSelTopic]   = useState('all');
   const [words, setWords]         = useState<Word[]>([]);
   const [wordIdx, setWordIdx]     = useState(0);
+  const [charIdx, setCharIdx]     = useState(0); // chữ hiện tại trong từ nhiều chữ
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [loadingWords, setLoadingWords]   = useState(false);
   const [showHint, setShowHint]   = useState(false);
@@ -155,7 +156,7 @@ export default function WritingPage() {
     setCanvasStatus('error');
   }, []);
 
-  // Reset state khi đổi từ hoặc mode
+  // Reset state khi đổi từ hoặc chữ hoặc mode
   useEffect(() => {
     if (phase !== 'practice') return;
     setCanvasStatus('loading');
@@ -164,7 +165,7 @@ export default function WritingPage() {
     setTotalStrokes(0);
     setShowHint(false);
     writerRef.current = null;
-  }, [wordIdx, hwMode, phase]);
+  }, [wordIdx, charIdx, hwMode, phase]);
 
   const replayAnimation = () => {
     if (!writerRef.current) return;
@@ -211,6 +212,7 @@ export default function WritingPage() {
   const startPracticeOne = (w: Word) => {
     setWords([w]);
     setWordIdx(0);
+    setCharIdx(0);
     setPhase('practice');
   };
 
@@ -219,6 +221,7 @@ export default function WritingPage() {
     if (!customWords.length) return;
     setWords([...customWords]);
     setWordIdx(0);
+    setCharIdx(0);
     setPhase('practice');
   };
 
@@ -229,15 +232,25 @@ export default function WritingPage() {
       if (d.data && d.data.length > 0) {
         setWords(d.data);
         setWordIdx(0);
+        setCharIdx(0);
         setPhase('practice');
       }
     } catch (e) { console.error(e); }
     setLoadingWords(false);
   };
 
-  const nextWord = () => {
-    if (wordIdx + 1 < words.length) setWordIdx(i => i + 1);
-    else setPhase('setup');
+  // Chuyển sang chữ tiếp theo trong từ, hoặc từ tiếp theo
+  const nextChar = () => {
+    const word = words[wordIdx];
+    if (charIdx + 1 < word.hanzi.length) {
+      // Còn chữ tiếp theo trong từ hiện tại
+      setCharIdx(i => i + 1);
+    } else {
+      // Chuyển sang từ tiếp theo, reset charIdx
+      setCharIdx(0);
+      if (wordIdx + 1 < words.length) setWordIdx(i => i + 1);
+      else setPhase('setup');
+    }
   };
 
   if (loading) return <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--c-text-muted)' }}>Đang tải...</div>;
@@ -538,6 +551,8 @@ export default function WritingPage() {
   // ══════════════════ PRACTICE ══════════════════
   const word = words[wordIdx];
   const lc = LEVEL_COLOR[hskLevel];
+  const currentChar = word.hanzi[charIdx]; // chữ đang luyện
+  const totalChars = word.hanzi.length;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', padding: '1.5rem' }}>
@@ -552,7 +567,10 @@ export default function WritingPage() {
             }}>← Quay lại</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
             <span style={{ background: lc + '20', color: lc, padding: '.25rem .7rem', borderRadius: 6, fontSize: '.75rem', fontWeight: 800 }}>{hskLevel}</span>
-            <span style={{ color: 'var(--c-text-muted)', fontSize: '.85rem', fontWeight: 600 }}>{wordIdx + 1} / {words.length}</span>
+            <span style={{ color: 'var(--c-text-muted)', fontSize: '.85rem', fontWeight: 600 }}>
+              Từ {wordIdx + 1}/{words.length}
+              {totalChars > 1 && <span style={{ color: '#f59e0b', fontWeight: 800 }}> · Chữ {charIdx + 1}/{totalChars}</span>}
+            </span>
           </div>
         </div>
 
@@ -590,10 +608,10 @@ export default function WritingPage() {
                 {canvasStatus === 'loading' ? '⏳ Đang tải nét chữ...' : canvasStatus === 'ready' ? '✅ Sẵn sàng' : '⚠️ Không có dữ liệu nét'}
               </div>
 
-              {/* HanziCanvas — key thay đổi khi char/mode đổi để force re-mount */}
+              {/* HanziCanvas — key thay đổi khi char/mode/charIdx đổi để force re-mount */}
               <HanziCanvas
-                key={`${word.hanzi[0]}-${hwMode}`}
-                char={word.hanzi[0]}
+                key={`${word.hanzi}-${charIdx}-${hwMode}`}
+                char={currentChar}
                 mode={hwMode}
                 onReady={handleWriterReady}
                 onError={handleWriterError}
@@ -676,9 +694,17 @@ export default function WritingPage() {
                   {TOPIC_LABEL[word.word_type] ?? word.word_type}
                 </span>
               )}
-              {word.hanzi.length > 1 && (
-                <div style={{ marginTop: '.6rem', fontSize: '.73rem', color: '#f59e0b', background: '#f59e0b10', padding: '.3rem .7rem', borderRadius: 6 }}>
-                  ℹ️ Canvas hiển thị chữ "{word.hanzi[0]}" (chữ đầu của từ)
+              {totalChars > 1 && (
+                <div style={{ marginTop: '.6rem', background: '#6366f110', padding: '.4rem .8rem', borderRadius: 8, display: 'flex', gap: '.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {word.hanzi.split('').map((ch, i) => (
+                    <span key={i} style={{
+                      fontSize: '1.3rem', fontWeight: 900,
+                      fontFamily: '"Noto Serif CJK SC",serif',
+                      color: i === charIdx ? '#6366f1' : 'var(--c-text-muted)',
+                      borderBottom: i === charIdx ? '2px solid #6366f1' : '2px solid transparent',
+                      paddingBottom: '.1rem', transition: 'all .2s'
+                    }}>{ch}</span>
+                  ))}
                 </div>
               )}
             </div>
@@ -723,14 +749,22 @@ export default function WritingPage() {
               </div>
             </div>
 
-            <button onClick={nextWord} id="btn-next-word"
+            <button onClick={nextChar} id="btn-next-word"
               style={{
                 padding: '1rem', borderRadius: 14, border: 'none', fontWeight: 900, fontSize: '1rem', cursor: 'pointer',
                 color: '#fff', transition: 'all .2s',
-                background: wordIdx + 1 >= words.length ? 'linear-gradient(135deg,#10b981,#3b82f6)' : 'linear-gradient(135deg,#f59e0b,#ec4899)',
+                background: wordIdx + 1 >= words.length && charIdx + 1 >= totalChars
+                  ? 'linear-gradient(135deg,#10b981,#3b82f6)'
+                  : charIdx + 1 < totalChars
+                    ? 'linear-gradient(135deg,#6366f1,#8b5cf6)'
+                    : 'linear-gradient(135deg,#f59e0b,#ec4899)',
                 boxShadow: '0 4px 16px #f59e0b30'
               }}>
-              {wordIdx + 1 >= words.length ? '✅ Hoàn thành bài!' : '→ Từ tiếp theo'}
+              {wordIdx + 1 >= words.length && charIdx + 1 >= totalChars
+                ? '✅ Hoàn thành bài!'
+                : charIdx + 1 < totalChars
+                  ? `→ Chữ tiếp: ${word.hanzi[charIdx + 1]} (${charIdx + 2}/${totalChars})`
+                  : '→ Từ tiếp theo'}
             </button>
           </div>
         </div>
