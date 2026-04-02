@@ -56,4 +56,55 @@ router.get('/review/due', auth, async (req, res) => {
   }
 });
 
+
+// POST /api/vocabulary/annotate — Tách từng từ và tra nghĩa tiếng Việt
+// Body: { texts: ["你好，我叫李明", "谢谢你"] }
+router.post('/annotate', async (req, res) => {
+  try {
+    const { texts } = req.body;
+    if (!texts || !texts.length) return res.json({ success: true, data: [] });
+
+    // Load toàn bộ vocabulary, sort theo độ dài giảm dần để match dài nhất trước
+    const [vocab] = await db.query(
+      'SELECT hanzi, meaning_vi, pinyin FROM vocabulary WHERE hanzi IS NOT NULL AND LENGTH(hanzi) >= 1 ORDER BY LENGTH(hanzi) DESC'
+    );
+
+    // Tạo map: hanzi → {meaning, pinyin}
+    const vocabMap = {};
+    for (const v of vocab) {
+      if (v.hanzi && !vocabMap[v.hanzi]) {
+        vocabMap[v.hanzi] = { meaning: v.meaning_vi, pinyin: v.pinyin };
+      }
+    }
+
+    // Max-forward matching: thử khớp chuỗi dài nhất trước (tối đa 4 ký tự)
+    const annotate = (text) => {
+      const tokens = [];
+      let i = 0;
+      while (i < text.length) {
+        let matched = false;
+        for (let len = Math.min(4, text.length - i); len >= 1; len--) {
+          const word = text.slice(i, i + len);
+          if (vocabMap[word]) {
+            tokens.push({ word, meaning: vocabMap[word].meaning, pinyin: vocabMap[word].pinyin });
+            i += len;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          tokens.push({ word: text[i], meaning: null, pinyin: null });
+          i++;
+        }
+      }
+      return tokens;
+    };
+
+    const data = texts.map((t) => annotate(t));
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

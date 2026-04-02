@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSpeech } from '@/lib/useSpeech';
 
+interface Token { word: string; meaning: string | null; pinyin: string | null; }
+
 interface DialogueLine {
   id: number;
   line_order: number;
@@ -103,6 +105,7 @@ export default function DialoguesPage() {
   const [playingId, setPlayingId] = useState<number|null>(null);
   const [isAutoPlay, setIsAutoPlay] = useState(false);
   const [speakerMap, setSpeakerMap] = useState<Record<string,string>>({});
+  const [annotationMap, setAnnotationMap] = useState<Record<number, Token[][]>>({}); // lineId → tokens[]
   const detailRef = useRef<HTMLDivElement>(null);
   const autoPlayRef = useRef(false);
   const { speak } = useSpeech();
@@ -124,6 +127,7 @@ export default function DialoguesPage() {
   const openDialogue = useCallback(async (d: Dialogue) => {
     setDetailLoading(true);
     setSelected(null);
+    setAnnotationMap({});
     setIsAutoPlay(false);
     autoPlayRef.current = false;
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dialogues/${d.id}`);
@@ -132,6 +136,24 @@ export default function DialoguesPage() {
       setSelected(json.data);
       setSpeakerMap(buildSpeakerMap(json.data.lines ?? []));
       setTimeout(() => detailRef.current?.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+
+      // Gọi annotate API để lấy nghĩa từng từ
+      const lines: DialogueLine[] = json.data.lines ?? [];
+      if (lines.length > 0) {
+        try {
+          const annoRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vocabulary/annotate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texts: lines.map(l => l.text_zh) }),
+          });
+          const annoJson = await annoRes.json();
+          if (annoJson.success) {
+            const map: Record<number, Token[][]> = {};
+            lines.forEach((l, i) => { map[l.id] = annoJson.data[i]; });
+            setAnnotationMap(map);
+          }
+        } catch {}
+      }
     }
     setDetailLoading(false);
   }, []);
@@ -529,17 +551,32 @@ export default function DialoguesPage() {
                                 {/* Số thứ tự */}
                                 <div style={{ fontSize:'.68rem', color:'#6366f1', fontWeight:700, marginBottom:'.3rem',
                                   opacity:.7 }}>¶ {idx+1}</div>
-                                {/* zh(vi) kiểu inline */}
-                                <p style={{ fontSize:'1.08rem', fontWeight:600, color:'var(--c-text)',
-                                  lineHeight:1.7, marginBottom: showPinyin ? '.2rem' : 0 }}>
-                                  {line.text_zh}
-                                  {showVi && (
-                                    <span style={{ fontSize:'.85rem', color:'var(--c-text-muted)',
-                                      fontWeight:400, marginLeft:'.3rem' }}>
-                                      ({line.text_vi})
-                                    </span>
-                                  )}
-                                </p>
+                                {/* Hiển thị từng từ với nghĩa inline */}
+                                {(() => {
+                                  const tokens = annotationMap[line.id];
+                                  return (
+                                    <p style={{ fontSize:'1.08rem', fontWeight:600, color:'var(--c-text)',
+                                      lineHeight:2, marginBottom: showPinyin ? '.2rem' : 0, flexWrap:'wrap', display:'flex', gap:'.15rem' }}>
+                                      {tokens ? tokens.map((tk, ti) => (
+                                        tk.meaning ? (
+                                          <span key={ti} title={tk.meaning} style={{
+                                            display:'inline-flex', flexDirection:'column', alignItems:'center',
+                                            cursor:'help', margin:'0 .1rem'
+                                          }}>
+                                            <span style={{ fontWeight:700, color:'var(--c-text)' }}>{tk.word}</span>
+                                            {showVi && <span style={{ fontSize:'.65rem', color:'#6366f1', lineHeight:1, marginTop:'1px', whiteSpace:'nowrap' }}>{tk.meaning.split('/')[0].trim()}</span>}
+                                          </span>
+                                        ) : (
+                                          <span key={ti} style={{ color:'var(--c-text-muted)' }}>{tk.word}</span>
+                                        )
+                                      )) : (
+                                        <span>{line.text_zh}
+                                          {showVi && <span style={{ fontSize:'.85rem', color:'var(--c-text-muted)', fontWeight:400, marginLeft:'.3rem' }}>({line.text_vi})</span>}
+                                        </span>
+                                      )}
+                                    </p>
+                                  );
+                                })()}
                                 {showPinyin && line.pinyin && (
                                   <p style={{ fontSize:'.8rem', color:'#6366f1',
                                     fontStyle:'italic', lineHeight:1.5, marginTop:'.1rem' }}>
@@ -607,17 +644,32 @@ export default function DialoguesPage() {
                             }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'.5rem' }}>
                                 <div style={{ flex:1, minWidth:0 }}>
-                                  {/* zh(vi) kiểu inline trong bong bóng */}
-                                  <p style={{ fontSize:'1.05rem', fontWeight:700, color:'var(--c-text)',
-                                    lineHeight:1.55, marginBottom: showPinyin ? '.15rem' : 0 }}>
-                                    {line.text_zh}
-                                    {showVi && (
-                                      <span style={{ fontSize:'.82rem', color:'var(--c-text-muted)',
-                                        fontWeight:400, marginLeft:'.3rem' }}>
-                                        ({line.text_vi})
-                                      </span>
-                                    )}
-                                  </p>
+                                  {/* Từng từ với nghĩa inline trong bong bóng */}
+                                  {(() => {
+                                    const tokens = annotationMap[line.id];
+                                    return (
+                                      <p style={{ fontSize:'1.05rem', fontWeight:700, color:'var(--c-text)',
+                                        lineHeight:2, marginBottom: showPinyin ? '.15rem' : 0, flexWrap:'wrap', display:'flex', gap:'.1rem' }}>
+                                        {tokens ? tokens.map((tk, ti) => (
+                                          tk.meaning ? (
+                                            <span key={ti} title={tk.meaning} style={{
+                                              display:'inline-flex', flexDirection:'column', alignItems:'center',
+                                              cursor:'help', margin:'0 .1rem'
+                                            }}>
+                                              <span style={{ fontWeight:800, color:'var(--c-text)' }}>{tk.word}</span>
+                                              {showVi && <span style={{ fontSize:'.62rem', color, lineHeight:1, marginTop:'1px', whiteSpace:'nowrap' }}>{tk.meaning.split('/')[0].trim()}</span>}
+                                            </span>
+                                          ) : (
+                                            <span key={ti} style={{ color:'var(--c-text-muted)' }}>{tk.word}</span>
+                                          )
+                                        )) : (
+                                          <span>{line.text_zh}
+                                            {showVi && <span style={{ fontSize:'.82rem', color:'var(--c-text-muted)', fontWeight:400, marginLeft:'.3rem' }}>({line.text_vi})</span>}
+                                          </span>
+                                        )}
+                                      </p>
+                                    );
+                                  })()}
                                   {showPinyin && line.pinyin && (
                                     <p style={{ fontSize:'.77rem', color, fontStyle:'italic',
                                       marginTop:'.1rem', lineHeight:1.4 }}>
