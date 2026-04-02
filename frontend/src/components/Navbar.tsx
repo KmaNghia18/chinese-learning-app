@@ -29,6 +29,7 @@ export default function Navbar() {
     { href: '/tones',     label: '🎵 Thanh điệu' },
     { href: '/flashcard', label: '📇 Flashcard' },
     { href: '/writing',   label: '✍️ Tập viết' },
+    { href: '/exam',      label: '🎓 Thi thử HSK' },
   ];
 
   return (

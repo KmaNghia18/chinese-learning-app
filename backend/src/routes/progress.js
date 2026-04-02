@@ -40,26 +40,43 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
-// POST /api/progress/review — Cập nhật sau khi ôn tập từ vựng
+// POST /api/progress/review — Cập nhật sau khi ôn tập (SM-2 algorithm)
+// quality: 0=sai hoàn toàn, 3=đúng khó, 4=đúng dễ, 5=đúng hoàn hảo
 router.post('/review', auth, async (req, res) => {
   try {
-    const { vocabulary_id, correct } = req.body;
+    const { vocabulary_id, correct, quality } = req.body;
     const userId = req.user.id;
+    // quality: 0-2=sai, 3-5=đúng. Default: correct=true→4, false→1
+    const q = quality !== undefined ? quality : (correct ? 4 : 1);
 
     const [existing] = await db.query(
       'SELECT * FROM user_progress WHERE user_id = ? AND vocabulary_id = ?',
       [userId, vocabulary_id]
     );
 
-    // Simple spaced repetition: đúng thì interval x2, sai thì reset về 1
-    let interval = 1, ease_factor = 2.5, status = 'learning';
+    // ── SM-2 Algorithm ──
+    let n = 0, ef = 2.5, interval = 1;
     if (existing.length > 0) {
       const prev = existing[0];
-      ease_factor = correct ? Math.min(prev.ease_factor + 0.1, 3.0) : Math.max(prev.ease_factor - 0.2, 1.3);
-      interval = correct ? Math.round(prev.interval_days * ease_factor) : 1;
-      status = interval >= 21 ? 'mastered' : interval >= 7 ? 'reviewing' : 'learning';
+      n = prev.correct_count || 0;
+      ef = parseFloat(prev.ease_factor) || 2.5;
     }
 
+    // Tính EF mới: EF' = EF + (0.1 - (5-q)*(0.08 + (5-q)*0.02))
+    const newEF = Math.max(1.3, ef + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+
+    if (q < 3) {
+      // Sai → reset lần lặp về 0, interval = 1
+      n = 0; interval = 1;
+    } else {
+      // Đúng → tính interval theo SM-2
+      if (n === 0) interval = 1;
+      else if (n === 1) interval = 6;
+      else interval = Math.round(existing[0]?.interval_days * newEF || 6);
+      n++;
+    }
+
+    const status = interval >= 21 ? 'mastered' : interval >= 7 ? 'reviewing' : 'learning';
     const next_review = new Date(Date.now() + interval * 24 * 60 * 60 * 1000);
 
     await db.query(
@@ -73,11 +90,13 @@ router.post('/review', auth, async (req, res) => {
          interval_days = VALUES(interval_days),
          last_reviewed = NOW(),
          next_review = VALUES(next_review)`,
-      [userId, vocabulary_id, status, correct ? 1 : 0, correct ? 0 : 1, ease_factor, interval, next_review,
-       correct ? 1 : 0, correct ? 0 : 1]
+      [userId, vocabulary_id, status,
+       q >= 3 ? 1 : 0, q < 3 ? 1 : 0,
+       newEF, interval, next_review,
+       q >= 3 ? 1 : 0, q < 3 ? 1 : 0]
     );
 
-    res.json({ success: true, data: { interval, ease_factor, status, next_review } });
+    res.json({ success: true, data: { interval, ease_factor: newEF, status, next_review, quality: q } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
