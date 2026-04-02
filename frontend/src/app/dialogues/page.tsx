@@ -529,21 +529,17 @@ export default function DialoguesPage() {
                                 {/* Số thứ tự */}
                                 <div style={{ fontSize:'.68rem', color:'#6366f1', fontWeight:700, marginBottom:'.3rem',
                                   opacity:.7 }}>¶ {idx+1}</div>
-                                {/* zh + vi cạnh nhau cùng hàng */}
-                                <div style={{ display:'flex', gap:'.75rem', alignItems:'flex-start' }}>
-                                  <p style={{ fontSize:'1.08rem', fontWeight:600, color:'var(--c-text)',
-                                    lineHeight:1.7, flex:'0 0 auto', maxWidth: showVi ? '52%' : '100%',
-                                    marginBottom: showPinyin ? '.2rem' : 0 }}>
-                                    {line.text_zh}
-                                  </p>
+                                {/* zh(vi) kiểu inline */}
+                                <p style={{ fontSize:'1.08rem', fontWeight:600, color:'var(--c-text)',
+                                  lineHeight:1.7, marginBottom: showPinyin ? '.2rem' : 0 }}>
+                                  {line.text_zh}
                                   {showVi && (
-                                    <p style={{ fontSize:'.88rem', color:'var(--c-text-muted)', lineHeight:1.6,
-                                      flex:1, borderLeft:'2px dashed var(--c-border)', paddingLeft:'.75rem',
-                                      marginTop:'.15rem' }}>
-                                      🇻🇳 {line.text_vi}
-                                    </p>
+                                    <span style={{ fontSize:'.85rem', color:'var(--c-text-muted)',
+                                      fontWeight:400, marginLeft:'.3rem' }}>
+                                      ({line.text_vi})
+                                    </span>
                                   )}
-                                </div>
+                                </p>
                                 {showPinyin && line.pinyin && (
                                   <p style={{ fontSize:'.8rem', color:'#6366f1',
                                     fontStyle:'italic', lineHeight:1.5, marginTop:'.1rem' }}>
@@ -611,21 +607,17 @@ export default function DialoguesPage() {
                             }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'.5rem' }}>
                                 <div style={{ flex:1, minWidth:0 }}>
-                                  {/* zh + vi cạnh nhau cùng hàng trong bong bóng */}
-                                  <div style={{ display:'flex', gap:'.6rem', alignItems:'flex-start' }}>
-                                    <p style={{ fontSize:'1.05rem', fontWeight:700, color:'var(--c-text)',
-                                      lineHeight:1.55, flex:'0 0 auto', maxWidth: showVi ? '50%' : '100%',
-                                      marginBottom: showPinyin ? '.15rem' : 0 }}>
-                                      {line.text_zh}
-                                    </p>
+                                  {/* zh(vi) kiểu inline trong bong bóng */}
+                                  <p style={{ fontSize:'1.05rem', fontWeight:700, color:'var(--c-text)',
+                                    lineHeight:1.55, marginBottom: showPinyin ? '.15rem' : 0 }}>
+                                    {line.text_zh}
                                     {showVi && (
-                                      <p style={{ fontSize:'.82rem', color:'var(--c-text-muted)', lineHeight:1.5,
-                                        flex:1, borderLeft:'2px dashed var(--c-border)', paddingLeft:'.6rem',
-                                        marginTop:'.1rem' }}>
-                                        🇻🇳 {line.text_vi}
-                                      </p>
+                                      <span style={{ fontSize:'.82rem', color:'var(--c-text-muted)',
+                                        fontWeight:400, marginLeft:'.3rem' }}>
+                                        ({line.text_vi})
+                                      </span>
                                     )}
-                                  </div>
+                                  </p>
                                   {showPinyin && line.pinyin && (
                                     <p style={{ fontSize:'.77rem', color, fontStyle:'italic',
                                       marginTop:'.1rem', lineHeight:1.4 }}>
