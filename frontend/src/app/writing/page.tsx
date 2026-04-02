@@ -167,6 +167,23 @@ export default function WritingPage() {
     writerRef.current = null;
   }, [wordIdx, charIdx, hwMode, phase]);
 
+  // #7 Auto-advance: khi viết đúng trong quiz mode → tự sang chữ tiếp theo sau 1.5s
+  useEffect(() => {
+    if (quizResult === 'correct' && hwMode === 'quiz') {
+      const t = setTimeout(() => {
+        const word = words[wordIdx];
+        if (charIdx + 1 < word?.hanzi.length) {
+          setCharIdx(i => i + 1);
+        } else {
+          setCharIdx(0);
+          if (wordIdx + 1 < words.length) setWordIdx(i => i + 1);
+          else setPhase('setup');
+        }
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [quizResult, hwMode, charIdx, wordIdx, words]); // eslint-disable-line
+
   const replayAnimation = () => {
     if (!writerRef.current) return;
     try {

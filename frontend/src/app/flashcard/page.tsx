@@ -13,6 +13,7 @@ export default function FlashcardPage() {
   const router = useRouter();
   const [phase, setPhase] = useState<'setup'|'study'>('setup');
   const [level, setLevel] = useState('HSK1');
+  const [flashMode, setFlashMode] = useState<'standard'|'pinyin'>('standard');
   const [cards, setCards] = useState<Card[]>([]);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -21,6 +22,10 @@ export default function FlashcardPage() {
   const [retry, setRetry] = useState<number[]>([]);
   const [done, setDone] = useState(false);
   const [swipeDir, setSwipeDir] = useState<'left'|'right'|null>(null);
+  // Pinyin mode state
+  const [pinyinInput, setPinyinInput] = useState('');
+  const [pinyinResult, setPinyinResult] = useState<'correct'|'wrong'|null>(null);
+  const pinyinRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!loading && !user) router.push('/login'); }, [user,loading,router]);
 
@@ -31,6 +36,7 @@ export default function FlashcardPage() {
       const shuffled = [...d.data].sort(() => Math.random() - 0.5);
       setCards(shuffled); setIdx(0); setFlipped(false);
       setKnown([]); setRetry([]); setDone(false);
+      setPinyinInput(''); setPinyinResult(null);
       setPhase('study');
     } catch(e) { console.error(e); }
     setLoadingCards(false);
@@ -42,17 +48,28 @@ export default function FlashcardPage() {
   }, []);
 
   const swipe = (dir: 'left'|'right') => {
-    if (!flipped) return;
+    if (!flipped && flashMode === 'standard') return;
+    if (flashMode === 'pinyin' && !pinyinResult) return;
     setSwipeDir(dir);
     const card = cards[idx];
     if (dir === 'right') setKnown(k => [...k, card.id]);
     else setRetry(r => [...r, card.id]);
-    
     setTimeout(() => {
       setSwipeDir(null); setFlipped(false);
+      setPinyinInput(''); setPinyinResult(null);
       if (idx + 1 < cards.length) setIdx(i => i+1);
       else setDone(true);
     }, 350);
+  };
+
+  const checkPinyin = () => {
+    const card = cards[idx];
+    // So sánh pinyin bỏ dấu tone
+    const normalize = (s: string) => s.toLowerCase().replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, '').trim();
+    const correct = normalize(card.pinyin) === normalize(pinyinInput);
+    setPinyinResult(correct ? 'correct' : 'wrong');
+    setFlipped(true);
+    if (correct) setTimeout(() => swipe('right'), 1200);
   };
 
   const reviewRetry = () => {
@@ -79,7 +96,7 @@ export default function FlashcardPage() {
           <p style={{color:'var(--c-text-muted)'}}>Thẻ lật từ vựng · Nhấn để xem nghĩa · Vuốt để phân loại</p>
         </div>
 
-        <div style={{background:'var(--c-surface)',borderRadius:16,padding:'1.5rem',marginBottom:'1.25rem',border:'1px solid var(--c-border)'}}>
+          <div style={{background:'var(--c-surface)',borderRadius:16,padding:'1.5rem',marginBottom:'1.25rem',border:'1px solid var(--c-border)'}}>
           <h3 style={{fontWeight:800,marginBottom:'1rem',color:'var(--c-text)',fontSize:'.95rem'}}>📊 Chọn cấp độ</h3>
           <div style={{display:'flex',gap:'.6rem',flexWrap:'wrap'}}>
             {['HSK1','HSK2','HSK3','HSK4'].map(lv => (
@@ -90,6 +107,29 @@ export default function FlashcardPage() {
                   color:level===lv?'#fff':'var(--c-text-muted)',
                   fontWeight:800,cursor:'pointer',fontSize:'.85rem',transition:'all .2s'}}>{lv}</button>
             ))}
+          </div>
+        </div>
+
+        {/* Mode toggle */}
+        <div style={{background:'var(--c-surface)',borderRadius:16,padding:'1.5rem',marginBottom:'1.25rem',border:'1px solid var(--c-border)'}}>
+          <h3 style={{fontWeight:800,marginBottom:'1rem',color:'var(--c-text)',fontSize:'.95rem'}}>🎮 Chọn chế độ</h3>
+          <div style={{display:'flex',gap:'.6rem'}}>
+            <button onClick={() => setFlashMode('standard')}
+              style={{flex:1,padding:'.65rem 1rem',borderRadius:10,border:'2px solid',
+                borderColor:flashMode==='standard'?'#8b5cf6':'var(--c-border)',
+                background:flashMode==='standard'?'#8b5cf618':'transparent',
+                color:flashMode==='standard'?'#8b5cf6':'var(--c-text-muted)',
+                fontWeight:700,cursor:'pointer',fontSize:'.85rem',transition:'all .2s'}}>
+              📇 Thẻ lật<br/><span style={{fontSize:'.7rem',fontWeight:500}}>Lật để xem nghĩa</span>
+            </button>
+            <button onClick={() => setFlashMode('pinyin')}
+              style={{flex:1,padding:'.65rem 1rem',borderRadius:10,border:'2px solid',
+                borderColor:flashMode==='pinyin'?'#6366f1':'var(--c-border)',
+                background:flashMode==='pinyin'?'#6366f118':'transparent',
+                color:flashMode==='pinyin'?'#6366f1':'var(--c-text-muted)',
+                fontWeight:700,cursor:'pointer',fontSize:'.85rem',transition:'all .2s'}}>
+              ⌨️ Điền Pinyin<br/><span style={{fontSize:'.7rem',fontWeight:500}}>Nhập pinyin chính xác</span>
+            </button>
           </div>
         </div>
 
@@ -224,9 +264,36 @@ export default function FlashcardPage() {
                   WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>
                   {card.hanzi}
                 </div>
-                <div style={{marginTop:'1.5rem',color:'var(--c-text-muted)',fontSize:'.82rem',display:'flex',alignItems:'center',gap:'.4rem'}}>
-                  <span>👆 Nhấn để lật thẻ</span>
-                </div>
+                {flashMode === 'pinyin' ? (
+                  // Pinyin fill mode
+                  <div style={{marginTop:'1.5rem',width:'100%'}} onClick={e => e.stopPropagation()}>
+                    <input
+                      ref={pinyinRef}
+                      value={pinyinInput}
+                      onChange={e => setPinyinInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') checkPinyin(); }}
+                      placeholder="Nhập pinyin... (ví dụ: ni hao)"
+                      autoFocus
+                      style={{
+                        width:'100%',padding:'.65rem 1rem',borderRadius:10,
+                        border:`2px solid ${pinyinResult ? (pinyinResult==='correct'?'#10b981':'#ef4444') : '#6366f1'}`,
+                        background:'var(--c-bg)',color:'var(--c-text)',
+                        fontSize:'1.1rem',textAlign:'center',outline:'none',boxSizing:'border-box',
+                        transition:'border-color .2s'
+                      }}
+                    />
+                    <button onClick={e => { e.stopPropagation(); checkPinyin(); }}
+                      style={{marginTop:'.75rem',width:'100%',padding:'.6rem',borderRadius:10,border:'none',
+                        background:'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                        color:'#fff',fontWeight:800,cursor:'pointer',fontSize:'.9rem'}}>
+                      ✓ Kiểm tra
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{marginTop:'1.5rem',color:'var(--c-text-muted)',fontSize:'.82rem',display:'flex',alignItems:'center',gap:'.4rem'}}>
+                    <span>👆 Nhấn để lật thẻ</span>
+                  </div>
+                )}
               </>
             ) : (
               /* Back */
