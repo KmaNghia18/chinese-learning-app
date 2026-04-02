@@ -1,8 +1,54 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSpeech } from '@/lib/useSpeech';
+import { api } from '@/lib/api';
 
 interface Token { word: string; meaning: string | null; pinyin: string | null; }
+
+// Popup hiển thị khi click từng từ
+function WordPopup({ token, onClose, onBookmark, bookmarked }: {
+  token: Token; onClose: () => void;
+  onBookmark: (w: Token) => void; bookmarked: boolean;
+}) {
+  return (
+    <div onClick={onClose} style={{
+      position:'fixed',inset:0,zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',
+      background:'rgba(0,0,0,.45)',backdropFilter:'blur(4px)'
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background:'var(--c-surface)',borderRadius:20,padding:'1.75rem 2rem',
+        border:'1px solid var(--c-border)',boxShadow:'0 20px 60px #0006',
+        maxWidth:320,width:'90%',textAlign:'center'
+      }}>
+        <div style={{fontSize:'3rem',fontWeight:900,fontFamily:'"Noto Serif CJK SC",serif',
+          color:'var(--c-text)',marginBottom:'.5rem'}}>{token.word}</div>
+        {token.pinyin && (
+          <div style={{fontSize:'1.1rem',color:'#6366f1',fontStyle:'italic',marginBottom:'.5rem'}}>
+            {token.pinyin}
+          </div>
+        )}
+        {token.meaning && (
+          <div style={{fontSize:'1rem',color:'var(--c-text-muted)',marginBottom:'1.25rem',lineHeight:1.6}}>
+            {token.meaning}
+          </div>
+        )}
+        <div style={{display:'flex',gap:'.75rem',justifyContent:'center'}}>
+          <button onClick={() => onBookmark(token)}
+            style={{ padding:'.6rem 1.25rem',borderRadius:10,border:'none',cursor:'pointer',
+              background:bookmarked?'#10b981':'#6366f115',
+              color:bookmarked?'#fff':'#6366f1',fontWeight:700,fontSize:'.9rem',transition:'all .2s' }}>
+            {bookmarked ? '✅ Đã lưu' : '⭐ Lưu từ này'}
+          </button>
+          <button onClick={onClose}
+            style={{ padding:'.6rem 1.25rem',borderRadius:10,border:'1px solid var(--c-border)',
+              cursor:'pointer',background:'transparent',color:'var(--c-text-muted)',fontWeight:600 }}>
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface DialogueLine {
   id: number;
@@ -105,10 +151,25 @@ export default function DialoguesPage() {
   const [playingId, setPlayingId] = useState<number|null>(null);
   const [isAutoPlay, setIsAutoPlay] = useState(false);
   const [speakerMap, setSpeakerMap] = useState<Record<string,string>>({});
-  const [annotationMap, setAnnotationMap] = useState<Record<number, Token[][]>>({}); // lineId → tokens[]
+  const [annotationMap, setAnnotationMap] = useState<Record<number, Token[]>>({}); // lineId → tokens
+  const [clickedWord, setClickedWord] = useState<Token | null>(null);
+  const [bookmarkedWords, setBookmarkedWords] = useState<Set<string>>(new Set());
   const detailRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const autoPlayRef = useRef(false);
   const { speak } = useSpeech();
+
+  const handleBookmark = useCallback(async (tk: Token) => {
+    // Tìm vocabulary_id từ hanzi, sau đó lưu vào review
+    try {
+      const r = await api.searchVocabulary(tk.word, 1);
+      const v = r.data?.[0];
+      if (v) {
+        await api.reviewVocab(v.id, true);
+        setBookmarkedWords(prev => new Set([...prev, tk.word]));
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/dialogues`)
@@ -148,7 +209,7 @@ export default function DialoguesPage() {
           });
           const annoJson = await annoRes.json();
           if (annoJson.success) {
-            const map: Record<number, Token[][]> = {};
+            const map: Record<number, Token[]> = {};
             lines.forEach((l, i) => { map[l.id] = annoJson.data[i]; });
             setAnnotationMap(map);
           }
@@ -161,6 +222,11 @@ export default function DialoguesPage() {
   const handleSpeak = useCallback((line: DialogueLine, idx: number) => {
     setPlayingId(idx);
     speak(line.text_zh);
+    // Auto-scroll dòng đang phát
+    setTimeout(() => {
+      const el = lineRefs.current[idx];
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
     setTimeout(() => setPlayingId(null), 2500);
   }, [speak]);
 
@@ -207,6 +273,15 @@ export default function DialoguesPage() {
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--c-bg)', padding:'2rem 1.5rem' }}>
+      {/* Word popup */}
+      {clickedWord && (
+        <WordPopup
+          token={clickedWord}
+          onClose={() => setClickedWord(null)}
+          onBookmark={handleBookmark}
+          bookmarked={bookmarkedWords.has(clickedWord.word)}
+        />
+      )}
       <div style={{ maxWidth:1280, margin:'0 auto' }}>
 
         {/* ── Header ── */}
@@ -539,6 +614,7 @@ export default function DialoguesPage() {
                         return (
                           <div key={line.id}
                             id={`line-${idx}`}
+                            ref={el => { lineRefs.current[idx] = el; }}
                             style={{
                               background: isPlaying ? '#6366f115' : 'var(--c-bg)',
                               borderRadius:12, padding:'1rem 1.1rem',
@@ -559,10 +635,17 @@ export default function DialoguesPage() {
                                       lineHeight:2, marginBottom: showPinyin ? '.2rem' : 0, flexWrap:'wrap', display:'flex', gap:'.15rem' }}>
                                       {tokens ? tokens.map((tk, ti) => (
                                         tk.meaning ? (
-                                          <span key={ti} title={tk.meaning} style={{
-                                            display:'inline-flex', flexDirection:'column', alignItems:'center',
-                                            cursor:'help', margin:'0 .1rem'
-                                          }}>
+                                          <span key={ti} title={tk.meaning}
+                                            onClick={() => setClickedWord(tk)}
+                                            style={{
+                                              display:'inline-flex', flexDirection:'column', alignItems:'center',
+                                              cursor:'pointer', margin:'0 .1rem',
+                                              borderRadius:4, padding:'0 2px',
+                                              transition:'background .15s',
+                                            }}
+                                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background='#6366f120'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background='transparent'}
+                                          >
                                             <span style={{ fontWeight:700, color:'var(--c-text)' }}>{tk.word}</span>
                                             {showVi && <span style={{ fontSize:'.65rem', color:'#6366f1', lineHeight:1, marginTop:'1px', whiteSpace:'nowrap' }}>{tk.meaning.split('/')[0].trim()}</span>}
                                           </span>

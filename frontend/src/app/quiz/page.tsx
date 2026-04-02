@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useSpeech } from '@/lib/useSpeech';
@@ -38,6 +38,8 @@ export default function QuizPage() {
   const [startTime, setStartTime]  = useState(0);
   const [streak, setStreak]        = useState(0);
   const [maxStreak, setMaxStreak]  = useState(0);
+  const [timeLeft, setTimeLeft]    = useState(20);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { if (!loading && !user) router.push('/login'); }, [user, loading, router]);
 
@@ -52,7 +54,29 @@ export default function QuizPage() {
       .finally(() => setLoadingTopics(false));
   }, [level, user]);
 
-  // Auto-speak
+  // Timer đếm ngược 20s mỗi câu
+  useEffect(() => {
+    if (phase !== 'quiz' || selected !== null) return;
+    setTimeLeft(20);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(timerRef.current!);
+          // Hết giờ → tự động chọn sai
+          const q = questions[qIdx];
+          if (q) {
+            const wrongChoice = q.choices.find(c => !c.correct);
+            if (wrongChoice) choose(wrongChoice);
+          }
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current!);
+  }, [qIdx, phase, selected]); // eslint-disable-line
+
+  // Auto-speak khi câu mới
   useEffect(() => {
     if (phase==='quiz' && questions[qIdx]) {
       const t = setTimeout(() => speak(questions[qIdx].hanzi), 400);
@@ -161,6 +185,7 @@ export default function QuizPage() {
           <span>🔊 Tự động phát âm</span>
           <span>🎯 10 câu trắc nghiệm</span>
           <span>🔥 Theo dõi chuỗi đúng</span>
+          <span>⏱️ 20 giây mỗi câu</span>
         </div>
 
         <button onClick={startQuiz} id="btn-start-quiz"
@@ -243,11 +268,25 @@ export default function QuizPage() {
           </div>
         </div>
 
-        {/* Progress */}
-        <div style={{height:4,background:'var(--c-border)',borderRadius:99,marginBottom:'1.75rem',overflow:'hidden'}}>
+        {/* Progress bar */}
+        <div style={{height:4,background:'var(--c-border)',borderRadius:99,marginBottom:'.6rem',overflow:'hidden'}}>
           <div style={{height:'100%',borderRadius:99,
             background:`linear-gradient(90deg,${lc},#ec4899)`,
             width:`${(qIdx/questions.length)*100}%`,transition:'width .4s'}} />
+        </div>
+
+        {/* Timer bar */}
+        <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'1.25rem'}}>
+          <div style={{flex:1,height:6,background:'var(--c-border)',borderRadius:99,overflow:'hidden'}}>
+            <div style={{height:'100%',borderRadius:99,transition:'width 1s linear',
+              background: timeLeft <= 5 ? '#ef4444' : timeLeft <= 10 ? '#f59e0b' : '#10b981',
+              width:`${(timeLeft/20)*100}%`}} />
+          </div>
+          <span style={{fontSize:'.75rem',fontWeight:800,
+            color: timeLeft <= 5 ? '#ef4444' : timeLeft <= 10 ? '#f59e0b' : 'var(--c-text-muted)',
+            minWidth:'2rem',textAlign:'right'}}>
+            {timeLeft}s
+          </span>
         </div>
 
         {/* Question */}
